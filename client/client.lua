@@ -293,8 +293,9 @@ local function applyHealthDamage(hunger, thirst)
         return
     end
     
-    local isCritical = hunger <= config.NeedsSystem.CriticalHungerThreshold or 
-                      thirst <= config.NeedsSystem.CriticalThirstThreshold
+    local isHungerCritical = hunger <= config.NeedsSystem.CriticalHungerThreshold
+    local isThirstCritical = thirst <= config.NeedsSystem.CriticalThirstThreshold
+    local isCritical = isHungerCritical or isThirstCritical
     
     if isCritical then
         local ped = getPed()
@@ -306,7 +307,15 @@ local function applyHealthDamage(hunger, thirst)
         lastHealthDamageTime = currentTime
         
         if config.NeedsSystem.Debug then
-            print("^1[RSG-CONSUME]^7 Health damage applied: " .. config.NeedsSystem.HealthDamageAmount .. " (Critical needs)")
+            local damageReason = ""
+            if isHungerCritical and isThirstCritical then
+                damageReason = " (Critical hunger AND thirst)"
+            elseif isHungerCritical then
+                damageReason = " (Critical hunger)"
+            elseif isThirstCritical then
+                damageReason = " (Critical thirst)"
+            end
+            print("^1[RSG-CONSUME]^7 Health damage applied: " .. config.NeedsSystem.HealthDamageAmount .. damageReason)
         end
     end
 end
@@ -317,6 +326,13 @@ local function canRegenerate()
     
     -- Check if in combat
     if playerInCombat then return false end
+    
+    -- Check if needs are critical (prevent regeneration when starving/dehydrated)
+    local hunger, thirst = getCurrentNeeds()
+    if hunger <= config.NeedsSystem.CriticalHungerThreshold or 
+       thirst <= config.NeedsSystem.CriticalThirstThreshold then
+        return false
+    end
     
     -- Check damage cooldown
     local currentTime = GetGameTimer()

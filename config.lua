@@ -349,11 +349,11 @@ return {
         
         -- Health damage when needs are critical
         EnableHealthDamage = true,    -- Enable health damage from low needs
-        HealthDamageAmount = 2,       -- Health damage per cycle when critical
-        HealthDamageInterval = 10000, -- Health damage interval (in ms) - 10 seconds
+        HealthDamageAmount = 10,      -- Health damage per cycle when critical (increased from 5)
+        HealthDamageInterval = 6000,  -- Health damage interval (in ms) - 6 seconds (even faster)
         
         -- Debug Options
-        Debug = false,                -- Enable debug messages
+        Debug = true,                 -- Enable debug messages (temporarily for testing)
     },
 
     AlcoholEffects = {
