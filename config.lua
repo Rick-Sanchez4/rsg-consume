@@ -6,10 +6,10 @@ return {
                 item = 'bread',
                 hunger = 25,
                 thirst = 0,
-                stress = 5,
+                stress = -5,
                 propname = 'p_bread_14_ab_s_a',
-                poison = 15,
-                poisonRate = 0.4,
+                poison = 0,
+                poisonRate = 0,
             },
             -- Comidas personalizadas
             ['grilled_steak'] = {
@@ -316,6 +316,41 @@ return {
         RecoveryWhenResting = true,   -- Faster recovery when not moving
         RestingMultiplier = 1.3,      -- Multiplier for recovery when resting - REDUCED from 2.0
         RestingSpeedThreshold = 0.8,  -- Speed below this is considered "resting"
+        
+        -- Debug Options
+        Debug = false,                -- Enable debug messages
+    },
+
+    -- Hunger and Thirst System Configuration
+    NeedsSystem = {
+        EnableAutoDecrease = true,    -- Enable automatic hunger/thirst decrease
+        HungerDecreaseRate = 1,       -- Hunger points decreased per cycle
+        ThirstDecreaseRate = 1.5,     -- Thirst points decreased per cycle (thirst decreases faster)
+        DecreaseInterval = 30000,     -- Decrease interval (in ms) - 30 seconds
+        
+        -- Activity-based decrease rates
+        ActivityMultipliers = {
+            Idle = 1.0,               -- Normal decrease when idle
+            Walking = 1.2,            -- 20% faster decrease when walking
+            Running = 1.5,            -- 50% faster decrease when running
+            Sprinting = 2.0,          -- 100% faster decrease when sprinting
+            Swimming = 2.5,           -- 150% faster decrease when swimming
+        },
+        
+        -- Minimum thresholds
+        MinHunger = 0,                -- Minimum hunger level
+        MinThirst = 0,                -- Minimum thirst level
+        
+        -- Effects when needs are low
+        LowHungerThreshold = 20,      -- Hunger level to show warning
+        LowThirstThreshold = 15,      -- Thirst level to show warning
+        CriticalHungerThreshold = 5,  -- Critical hunger level
+        CriticalThirstThreshold = 5,  -- Critical thirst level
+        
+        -- Health damage when needs are critical
+        EnableHealthDamage = true,    -- Enable health damage from low needs
+        HealthDamageAmount = 2,       -- Health damage per cycle when critical
+        HealthDamageInterval = 10000, -- Health damage interval (in ms) - 10 seconds
         
         -- Debug Options
         Debug = false,                -- Enable debug messages

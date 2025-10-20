@@ -1,13 +1,15 @@
 <img width="2948" height="497" alt="rsg_framework" src="https://github.com/user-attachments/assets/638791d8-296d-4817-a596-785325c1b83a" />
 
 # 🍞 rsg-consume
-**Universal consumption system for RedM using RSG Core.**
+**Advanced consumption system for RedM using RSG Core with Smart Health Recovery System.**
 
 ![Platform](https://img.shields.io/badge/platform-RedM-darkred)
 ![License](https://img.shields.io/badge/license-GPL--3.0-green)
+![Version](https://img.shields.io/badge/version-1.2.0-blue)
+![Status](https://img.shields.io/badge/status-stable-brightgreen)
 
 > Immersive eating and drinking system for RedM servers built on RSG Core.  
-> Adds configurable hunger, thirst, alcohol, stress, and poison effects with synchronized animations and props.
+> Features advanced health recovery with combat detection, configurable hunger, thirst, alcohol, stress, and poison effects with synchronized animations and props.
 
 ---
 
@@ -49,7 +51,19 @@
 - **Damage Cooldown**: 45-second cooldown after taking damage before regeneration starts
 - **Combat Timeout**: 15 seconds of no damage to exit combat state
 - **Resting Bonus**: Slightly faster regeneration when not moving (1.3x multiplier)
-- **Integration**: Works seamlessly with rsg-medic and rex_zombies systems  
+- **Integration**: Works seamlessly with rsg-medic and rex_zombies systems
+
+### 🍖🍺 Automatic Needs System (NEW!)
+- **Auto Decrease**: Hunger and thirst automatically decrease over time
+- **Activity-Based**: Different decrease rates based on player activity:
+  - Idle: Normal rate
+  - Walking: 20% faster decrease
+  - Running: 50% faster decrease
+  - Sprinting: 100% faster decrease
+  - Swimming: 150% faster decrease
+- **Smart Notifications**: Warnings when hunger/thirst are low or critical
+- **Health Damage**: Critical needs cause health damage over time
+- **Configurable**: Fully customizable decrease rates and thresholds  
 
 ### 🎬 Immersive Animations
 Each consumption type has its own prop and animation:
@@ -148,6 +162,41 @@ HealthRecoverySystem = {
     
     Debug = false,                -- Enable debug messages
 }
+
+-- Needs System (NEW!)
+NeedsSystem = {
+    EnableAutoDecrease = true,    -- Enable automatic hunger/thirst decrease
+    HungerDecreaseRate = 1,       -- Hunger points decreased per cycle
+    ThirstDecreaseRate = 1.5,     -- Thirst points decreased per cycle (thirst decreases faster)
+    DecreaseInterval = 30000,     -- Decrease interval (in ms) - 30 seconds
+    
+    -- Activity-based decrease rates
+    ActivityMultipliers = {
+        Idle = 1.0,               -- Normal decrease when idle
+        Walking = 1.2,            -- 20% faster decrease when walking
+        Running = 1.5,            -- 50% faster decrease when running
+        Sprinting = 2.0,          -- 100% faster decrease when sprinting
+        Swimming = 2.5,           -- 150% faster decrease when swimming
+    },
+    
+    -- Minimum thresholds
+    MinHunger = 0,                -- Minimum hunger level
+    MinThirst = 0,                -- Minimum thirst level
+    
+    -- Effects when needs are low
+    LowHungerThreshold = 20,      -- Hunger level to show warning
+    LowThirstThreshold = 15,      -- Thirst level to show warning
+    CriticalHungerThreshold = 5,  -- Critical hunger level
+    CriticalThirstThreshold = 5,  -- Critical thirst level
+    
+    -- Health damage when needs are critical
+    EnableHealthDamage = true,    -- Enable health damage from low needs
+    HealthDamageAmount = 2,       -- Health damage per cycle when critical
+    HealthDamageInterval = 10000, -- Health damage interval (in ms) - 10 seconds
+    
+    -- Debug Options
+    Debug = false,                -- Enable debug messages
+}
 ```
 
 ---
@@ -184,12 +233,20 @@ coffee  = { name = 'coffee',  label = 'Cup of Coffee',      weight = 80,  type =
 - `/healthstatus` - Shows current health regeneration status
 - `/healthdebug` - Toggles debug mode for health system
 
+### Needs System Commands (NEW!)
+- `/needsstatus` - Shows current hunger, thirst, and activity status
+- `/needsdebug` - Toggles debug mode for needs system
+- `/setneeds <hunger> <thirst>` - Sets hunger and thirst values (admin)
+
 ### Debug Information
 When debug mode is enabled, you'll see messages like:
 ```
 [RSG-CONSUME] Entered combat state - Damage: 15
 [RSG-CONSUME] Exited combat state
 [RSG-CONSUME] Regenerated 3 health (45% -> 48%)
+[RSG-CONSUME] Needs updated - Hunger: 85, Thirst: 78
+[RSG-CONSUME] Activity: Running (x1.5) - Hunger: 84, Thirst: 77
+[RSG-CONSUME] Health damage applied: 2 (Critical needs)
 ```
 
 ### Health Status Display
@@ -199,6 +256,13 @@ The `/healthstatus` command shows:
 - Can regenerate (Yes/No)
 - System status (Active/Inactive)
 - Combat detection status
+
+### Needs Status Display
+The `/needsstatus` command shows:
+- Current hunger and thirst percentages
+- Current activity level and multiplier
+- System status (Active/Inactive)
+- Health damage from needs (Enabled/Disabled)
 
 ---
 

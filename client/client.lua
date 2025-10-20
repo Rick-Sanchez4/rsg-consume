@@ -1,5 +1,5 @@
 local config = require 'config'
----@type table
+---@type boolean
 local isBusy = false
 ---@type number
 local alcoholCount = 0
@@ -172,6 +172,12 @@ local lastDamageTime = 0
 local lastHealth = 0
 
 -- =========================================================================================
+-- Needs System Variables
+-- =========================================================================================
+
+local lastHealthDamageTime = 0
+
+-- =========================================================================================
 -- Health Recovery System Functions
 -- =========================================================================================
 
@@ -179,6 +185,130 @@ local function isPlayerResting()
     local ped = getPed()
     local velocity = GetEntitySpeed(ped)
     return velocity < config.HealthRecoverySystem.RestingSpeedThreshold
+end
+
+-- =========================================================================================
+-- Needs System Functions
+-- =========================================================================================
+
+---Determines the player's current activity level for needs calculation.
+---@return string The activity type.
+local function getPlayerActivity()
+    local ped = getPed()
+    local velocity = GetEntitySpeed(ped)
+    
+    if IsPedSwimming(ped) then
+        return "Swimming"
+    elseif velocity > 3.0 then
+        return "Sprinting"
+    elseif velocity > 2.0 then
+        return "Running"
+    elseif velocity > 0.5 then
+        return "Walking"
+    else
+        return "Idle"
+    end
+end
+
+---Gets the current hunger and thirst values from player state.
+---@return number, number Current hunger and thirst values.
+local function getCurrentNeeds()
+    local hunger = LocalPlayer.state.hunger or 100
+    local thirst = LocalPlayer.state.thirst or 100
+    return hunger, thirst
+end
+
+---Updates hunger and thirst values and triggers HUD updates.
+---@param newHunger number New hunger value.
+---@param newThirst number New thirst value.
+local function updateNeeds(newHunger, newThirst)
+    -- Ensure values stay within bounds
+    newHunger = math.max(config.NeedsSystem.MinHunger, math.min(100, newHunger))
+    newThirst = math.max(config.NeedsSystem.MinThirst, math.min(100, newThirst))
+    
+    -- Update player state
+    LocalPlayer.state:set('hunger', newHunger, true)
+    LocalPlayer.state:set('thirst', newThirst, true)
+    
+    -- Trigger HUD updates
+    TriggerEvent('hud:client:UpdateHunger', newHunger)
+    TriggerEvent('hud:client:UpdateThirst', newThirst)
+    
+    if config.NeedsSystem.Debug then
+        print("^3[RSG-CONSUME]^7 Needs updated - Hunger: " .. math.floor(newHunger) .. ", Thirst: " .. math.floor(newThirst))
+    end
+end
+
+---Shows notifications for low needs.
+---@param hunger number Current hunger value.
+---@param thirst number Current thirst value.
+local function checkNeedsNotifications(hunger, thirst)
+    -- Hunger notifications
+    if hunger <= config.NeedsSystem.CriticalHungerThreshold then
+        lib.notify({
+            title = '🍖 Fome Crítica',
+            description = 'Você está morrendo de fome! Procure comida imediatamente!',
+            type = 'error',
+            duration = 5000,
+            position = 'top-right'
+        })
+    elseif hunger <= config.NeedsSystem.LowHungerThreshold then
+        lib.notify({
+            title = '🍖 Fome',
+            description = 'Você está com fome. Procure algo para comer.',
+            type = 'warning',
+            duration = 3000,
+            position = 'top-right'
+        })
+    end
+    
+    -- Thirst notifications
+    if thirst <= config.NeedsSystem.CriticalThirstThreshold then
+        lib.notify({
+            title = '💧 Sede Crítica',
+            description = 'Você está morrendo de sede! Procure água imediatamente!',
+            type = 'error',
+            duration = 5000,
+            position = 'top-right'
+        })
+    elseif thirst <= config.NeedsSystem.LowThirstThreshold then
+        lib.notify({
+            title = '💧 Sede',
+            description = 'Você está com sede. Procure algo para beber.',
+            type = 'warning',
+            duration = 3000,
+            position = 'top-right'
+        })
+    end
+end
+
+---Applies health damage when needs are critical.
+---@param hunger number Current hunger value.
+---@param thirst number Current thirst value.
+local function applyHealthDamage(hunger, thirst)
+    if not config.NeedsSystem.EnableHealthDamage then return end
+    
+    local currentTime = GetGameTimer()
+    if currentTime - lastHealthDamageTime < config.NeedsSystem.HealthDamageInterval then
+        return
+    end
+    
+    local isCritical = hunger <= config.NeedsSystem.CriticalHungerThreshold or 
+                      thirst <= config.NeedsSystem.CriticalThirstThreshold
+    
+    if isCritical then
+        local ped = getPed()
+        local currentHealth = GetEntityHealth(ped)
+        local newHealth = math.max(1, currentHealth - config.NeedsSystem.HealthDamageAmount)
+        
+        SetEntityHealth(ped, newHealth)
+        LocalPlayer.state:set('health', newHealth, true)
+        lastHealthDamageTime = currentTime
+        
+        if config.NeedsSystem.Debug then
+            print("^1[RSG-CONSUME]^7 Health damage applied: " .. config.NeedsSystem.HealthDamageAmount .. " (Critical needs)")
+        end
+    end
 end
 
 local function canRegenerate()
@@ -286,6 +416,44 @@ CreateThread(function()
 end)
 
 -- =========================================================================================
+-- Needs System Thread
+-- =========================================================================================
+
+CreateThread(function()
+    while true do
+        if config.NeedsSystem.EnableAutoDecrease then
+            local hunger, thirst = getCurrentNeeds()
+            local activity = getPlayerActivity()
+            local multiplier = config.NeedsSystem.ActivityMultipliers[activity] or 1.0
+            
+            -- Calculate decrease amounts based on activity
+            local hungerDecrease = config.NeedsSystem.HungerDecreaseRate * multiplier
+            local thirstDecrease = config.NeedsSystem.ThirstDecreaseRate * multiplier
+            
+            -- Apply decreases
+            local newHunger = hunger - hungerDecrease
+            local newThirst = thirst - thirstDecrease
+            
+            -- Update needs
+            updateNeeds(newHunger, newThirst)
+            
+            -- Check for notifications
+            checkNeedsNotifications(newHunger, newThirst)
+            
+            -- Apply health damage if critical
+            applyHealthDamage(newHunger, newThirst)
+            
+            if config.NeedsSystem.Debug then
+                print("^3[RSG-CONSUME]^7 Activity: " .. activity .. " (x" .. multiplier .. ") - Hunger: " .. 
+                      math.floor(newHunger) .. ", Thirst: " .. math.floor(newThirst))
+            end
+        end
+        
+        Wait(config.NeedsSystem.DecreaseInterval)
+    end
+end)
+
+-- =========================================================================================
 -- Generic Consumption Handler
 -- =========================================================================================
 
@@ -362,14 +530,22 @@ local function handleConsumption(itemName, type)
         end
     end
     TriggerServerEvent('rsg-consume:server:removeitem', data.item, 1)
-    if data.hunger then
-        TriggerEvent('hud:client:UpdateHunger', LocalPlayer.state.hunger + data.hunger)
+    if data.hunger and data.hunger ~= 0 then
+        local newHunger = LocalPlayer.state.hunger + data.hunger
+        LocalPlayer.state:set('hunger', newHunger, true)
+        TriggerEvent('hud:client:UpdateHunger', newHunger)
     end
-    if data.thirst then
-        TriggerEvent('hud:client:UpdateThirst', LocalPlayer.state.thirst + data.thirst)
+    if data.thirst and data.thirst ~= 0 then
+        local newThirst = LocalPlayer.state.thirst + data.thirst
+        LocalPlayer.state:set('thirst', newThirst, true)
+        TriggerEvent('hud:client:UpdateThirst', newThirst)
     end
-    if data.stress and data.stress > 0 then
-        TriggerEvent('hud:client:RelieveStress', data.stress)
+    if data.stress and data.stress ~= 0 then
+        if data.stress > 0 then
+            TriggerEvent('hud:client:RelieveStress', data.stress)
+        else
+            TriggerEvent('hud:server:GainStress', math.abs(data.stress))
+        end
     end
     if data.health and data.health > 0 then
         TriggerEvent('rsg-consume:client:healPlayer', data.health)
@@ -471,6 +647,47 @@ RegisterCommand('healthdebug', function()
     config.HealthRecoverySystem.Debug = not config.HealthRecoverySystem.Debug
     local status = config.HealthRecoverySystem.Debug and "ativado" or "desativado"
     print("^3[RSG-CONSUME]^7 Debug de regeneração " .. status)
+end, false)
+
+-- Command to check needs status
+RegisterCommand('needsstatus', function()
+    local hunger, thirst = getCurrentNeeds()
+    local activity = getPlayerActivity()
+    local multiplier = config.NeedsSystem.ActivityMultipliers[activity] or 1.0
+    
+    print("^2=== STATUS DE NECESSIDADES ===")
+    print("^7Fome: ^3" .. math.floor(hunger) .. "%")
+    print("^7Sede: ^3" .. math.floor(thirst) .. "%")
+    print("^7Atividade: ^3" .. activity .. " (x" .. multiplier .. ")")
+    print("^7Sistema Ativo: ^3" .. (config.NeedsSystem.EnableAutoDecrease and "Sim" or "Não"))
+    print("^7Dano por Necessidades: ^3" .. (config.NeedsSystem.EnableHealthDamage and "Sim" or "Não"))
+    print("^2=============================")
+end, false)
+
+-- Command to toggle needs debug mode
+RegisterCommand('needsdebug', function()
+    config.NeedsSystem.Debug = not config.NeedsSystem.Debug
+    local status = config.NeedsSystem.Debug and "ativado" or "desativado"
+    print("^3[RSG-CONSUME]^7 Debug de necessidades " .. status)
+end, false)
+
+-- Command to set hunger and thirst (admin only)
+RegisterCommand('setneeds', function(source, args)
+    if #args < 2 then
+        print("^1[RSG-CONSUME]^7 Uso: /setneeds <fome> <sede>")
+        return
+    end
+    
+    local hunger = tonumber(args[1])
+    local thirst = tonumber(args[2])
+    
+    if not hunger or not thirst then
+        print("^1[RSG-CONSUME]^7 Valores inválidos. Use números entre 0 e 100.")
+        return
+    end
+    
+    updateNeeds(hunger, thirst)
+    print("^2[RSG-CONSUME]^7 Necessidades definidas - Fome: " .. hunger .. ", Sede: " .. thirst)
 end, false)
 
 -- Integration with rex_zombies infection system
