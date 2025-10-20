@@ -1,0 +1,37 @@
+# FiveM/RedM specific
+*.log
+*.tmp
+*.cache
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*_backup.*
+
+# Temporary files
+temp/
+tmp/
+
+# Node modules (if any)
+node_modules/
+
+# Compiled files
+*.o
+*.so
+*.dll
+*.exe
+
+# Personal notes
+notes.txt
+TODO.txt
