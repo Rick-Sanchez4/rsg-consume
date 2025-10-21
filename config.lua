@@ -353,7 +353,7 @@ return {
         HealthDamageInterval = 6000,  -- Health damage interval (in ms) - 6 seconds (even faster)
         
         -- Debug Options
-        Debug = true,                 -- Enable debug messages (temporarily for testing)
+        Debug = false,                -- Enable debug messages
     },
 
     AlcoholEffects = {
