@@ -547,12 +547,16 @@ local function handleConsumption(itemName, type)
     end
     TriggerServerEvent('rsg-consume:server:removeitem', data.item, 1)
     if data.hunger and data.hunger ~= 0 then
-        local newHunger = LocalPlayer.state.hunger + data.hunger
+        local currentHunger = LocalPlayer.state.hunger or 100
+        local newHunger = currentHunger + data.hunger
+        newHunger = math.min(100, newHunger)
         LocalPlayer.state:set('hunger', newHunger, true)
         TriggerEvent('hud:client:UpdateHunger', newHunger)
     end
     if data.thirst and data.thirst ~= 0 then
-        local newThirst = LocalPlayer.state.thirst + data.thirst
+        local currentThirst = LocalPlayer.state.thirst or 100
+        local newThirst = currentThirst + data.thirst
+        newThirst = math.min(100, newThirst)
         LocalPlayer.state:set('thirst', newThirst, true)
         TriggerEvent('hud:client:UpdateThirst', newThirst)
     end
